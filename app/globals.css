@@ -1,0 +1,291 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar-background: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+
+  --radius: var(--radius);
+
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-in-left: slide-in-left 0.3s ease-out;
+  --animate-typing: typing 1.4s infinite ease-in-out;
+  --animate-pulse-glow: pulse-glow 2s infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-in-left {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes typing {
+
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.4;
+    }
+
+    30% {
+      transform: translateY(-8px);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 var(--pulse-color);
+    }
+
+    50% {
+      box-shadow: 0 0 0 10px transparent;
+    }
+  }
+}
+
+/* ============================================================================
+   Sage & Stone Design System - Tailwind v4
+   Primary: #8BA49A (Sage Green)
+   Accent: #D4A574 (Warm Honey)
+   ============================================================================ */
+
+:root {
+  /* Warm Stone Theme (Light) */
+  --background: oklch(0.98 0.005 120);
+  /* #FAFAF8 Warm cream */
+  --foreground: oklch(0.22 0.02 160);
+  /* #2C3532 Dark forest */
+
+  --card: oklch(1 0 0);
+  /* #FFFFFF Pure white */
+  --card-foreground: oklch(0.22 0.02 160);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.02 160);
+
+  /* Sage Green - Primary #8BA49A */
+  --primary: oklch(0.65 0.06 165);
+  --primary-foreground: oklch(0.98 0 0);
+
+  /* Warm Stone - Secondary */
+  --secondary: oklch(0.94 0.01 120);
+  --secondary-foreground: oklch(0.35 0.02 160);
+
+  /* Muted Sage Gray */
+  --muted: oklch(0.92 0.01 150);
+  --muted-foreground: oklch(0.50 0.02 160);
+
+  /* Warm Honey - Accent #D4A574 */
+  --accent: oklch(0.72 0.10 70);
+  --accent-foreground: oklch(0.20 0.02 70);
+
+  /* Muted Terracotta - Destructive #C9605A */
+  --destructive: oklch(0.55 0.12 25);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  /* Natural Green - Success #6B9E78 */
+  --success: oklch(0.60 0.10 145);
+  --success-foreground: oklch(0.98 0 0);
+
+  /* Honey - Warning (same as accent) */
+  --warning: oklch(0.72 0.10 70);
+  --warning-foreground: oklch(0.20 0.02 70);
+
+  /* Borders */
+  --border: oklch(0.88 0.01 150);
+  --input: oklch(0.88 0.01 150);
+  --ring: oklch(0.65 0.06 165);
+
+  --radius: 0.5rem;
+
+  /* Sidebar */
+  --sidebar-background: oklch(0.97 0.005 150);
+  --sidebar-foreground: oklch(0.35 0.02 160);
+  --sidebar-border: oklch(0.90 0.01 150);
+  --sidebar-accent: oklch(0.65 0.06 165);
+
+  /* Effects */
+  --pulse-color: oklch(0.65 0.06 165 / 0.3);
+  --shadow-soft: 0 4px 6px -1px oklch(0 0 0 / 0.05), 0 2px 4px -1px oklch(0 0 0 / 0.03);
+}
+
+.dark {
+  /* Deep Forest Theme (Dark) */
+  --background: oklch(0.14 0.02 160);
+  /* #1C211E Deep forest */
+  --foreground: oklch(0.92 0.01 150);
+  /* #E8EBE9 Light sage */
+
+  --card: oklch(0.18 0.02 160);
+  /* #252B27 */
+  --card-foreground: oklch(0.92 0.01 150);
+
+  --popover: oklch(0.18 0.02 160);
+  --popover-foreground: oklch(0.92 0.01 150);
+
+  /* Brighter Sage for Dark Mode */
+  --primary: oklch(0.70 0.08 165);
+  --primary-foreground: oklch(0.14 0.02 160);
+
+  --secondary: oklch(0.25 0.02 160);
+  --secondary-foreground: oklch(0.85 0.01 150);
+
+  --muted: oklch(0.25 0.02 160);
+  --muted-foreground: oklch(0.60 0.02 150);
+
+  /* Golden Honey Accent */
+  --accent: oklch(0.75 0.12 70);
+  --accent-foreground: oklch(0.14 0.02 160);
+
+  --destructive: oklch(0.55 0.12 25);
+  --destructive-foreground: oklch(0.95 0 0);
+
+  --success: oklch(0.62 0.10 145);
+  --success-foreground: oklch(0.14 0.02 160);
+
+  --warning: oklch(0.75 0.12 70);
+  --warning-foreground: oklch(0.14 0.02 160);
+
+  --border: oklch(0.28 0.02 160);
+  --input: oklch(0.28 0.02 160);
+  --ring: oklch(0.70 0.08 165);
+
+  /* Sidebar - Dark */
+  --sidebar-background: oklch(0.16 0.02 160);
+  --sidebar-foreground: oklch(0.70 0.02 150);
+  --sidebar-border: oklch(0.25 0.02 160);
+  --sidebar-accent: oklch(0.70 0.08 165);
+
+  --pulse-color: oklch(0.70 0.08 165 / 0.3);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+  }
+}
+
+@layer components {
+
+  /* Refined card style */
+  .card-premium {
+    @apply bg-card border border-border/50 shadow-sm transition-all duration-200;
+  }
+
+  .card-premium:hover {
+    @apply border-primary/30 shadow-md;
+  }
+
+  /* Sage gradient text */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent font-medium tracking-tight;
+  }
+
+  /* Professional Button */
+  .btn-premium {
+    @apply bg-primary text-primary-foreground shadow-sm hover:opacity-90 active:scale-[0.98] transition-all font-medium tracking-wide;
+  }
+
+  /* Message Bubbles */
+  .message-user {
+    @apply bg-primary text-primary-foreground shadow-sm;
+  }
+
+  .message-bot {
+    @apply bg-card text-foreground border border-border shadow-sm;
+  }
+
+  /* Scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-muted-foreground) transparent;
+  }
+
+  .typing-dot {
+    @apply w-1.5 h-1.5 rounded-full bg-current opacity-60;
+    animation: typing 1.4s infinite ease-in-out;
+  }
+
+  .typing-dot:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  .typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
