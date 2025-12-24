@@ -17,24 +17,38 @@ export function estimateTokens(text: string): number {
 }
 
 /**
+ * Extract text from message parts (handles various part types)
+ */
+function extractText(parts: unknown[]): string {
+    return parts
+        .map(p => {
+            if (typeof p === "object" && p !== null && "text" in p) {
+                return String((p as { text: string }).text);
+            }
+            return "";
+        })
+        .join(" ");
+}
+
+/**
  * Trim history to fit within token budget
  * Keeps recent messages, removes oldest first
  */
-export function trimHistoryByTokens(
-    history: Array<{ role: string; parts: Array<{ text: string }> }>,
+export function trimHistoryByTokens<T extends { role: string; parts: unknown[] }>(
+    history: T[],
     maxTokens = DEFAULT_MAX_TOKENS
-): Array<{ role: string; parts: Array<{ text: string }> }> {
+): T[] {
     if (!history || history.length === 0) return [];
 
     let totalTokens = 0;
-    const result: typeof history = [];
+    const result: T[] = [];
 
     // Work backwards from most recent
     for (let i = history.length - 1; i >= 0; i--) {
         const msg = history[i];
         if (!msg) continue;
 
-        const text = msg.parts.map(p => p.text).join(" ");
+        const text = extractText(msg.parts);
         const tokens = estimateTokens(text) + 10; // +10 for message overhead
 
         if (totalTokens + tokens > maxTokens) break;
@@ -45,3 +59,4 @@ export function trimHistoryByTokens(
 
     return result;
 }
+

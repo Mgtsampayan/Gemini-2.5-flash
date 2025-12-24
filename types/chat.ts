@@ -60,6 +60,25 @@ export interface ErrorResponse {
 }
 
 /**
+ * Attachment metadata for display
+ */
+export interface AttachmentMeta {
+    mimeType: string;
+    filename: string;
+}
+
+/**
+ * Response metadata from API
+ */
+export interface MessageMeta {
+    processingTimeMs?: number | undefined;
+    estimatedTokens?: number | undefined;
+    detectedIntent?: string | undefined;
+    temperatureUsed?: number | undefined;
+    toolsUsed?: string[] | undefined;
+}
+
+/**
  * Message type for UI rendering
  */
 export interface Message {
@@ -70,9 +89,13 @@ export interface Message {
     /** When the message was sent */
     timestamp: Date;
     /** Optional message ID for tracking */
-    id?: string;
+    id?: string | undefined;
     /** Message status for optimistic updates */
-    status?: "sending" | "sent" | "error";
+    status?: "sending" | "sent" | "error" | undefined;
+    /** Attachments included with this message */
+    attachments?: AttachmentMeta[] | undefined;
+    /** Response metadata (for bot messages) */
+    meta?: MessageMeta | undefined;
 }
 
 /**

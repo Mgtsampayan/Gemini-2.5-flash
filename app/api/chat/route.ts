@@ -1,16 +1,29 @@
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI, type GenerativeModel } from "@google/generative-ai";
+import type { ChatSession, Content, Part } from "@google/generative-ai";
 import { getSessionCache } from "@/lib/cache/chat-cache";
 import { sanitizeMessage, detectInjection } from "@/lib/sanitize";
 import { getRateLimiter } from "@/lib/rate-limit";
 import { trimHistoryByTokens, estimateTokens } from "@/lib/tokens";
+import {
+    getModel,
+    createGenerationConfig,
+    executeTool,
+    MODEL_CONFIG,
+    type Attachment,
+    type IntentType,
+    type ResponseMeta,
+} from "@/lib/gemini";
 
 // ============================================================================
 // Error Handling
 // ============================================================================
 
 class AppError extends Error {
-    constructor(public message: string, public statusCode: number = 500) {
+    constructor(
+        public message: string,
+        public statusCode: number = 500,
+        public code?: string
+    ) {
         super(message);
         this.name = "AppError";
     }
@@ -18,7 +31,7 @@ class AppError extends Error {
 
 class RateLimitError extends AppError {
     constructor(retryAfter: number) {
-        super(`Too many requests. Please wait ${retryAfter}s.`, 429);
+        super(`Too many requests. Please wait ${retryAfter}s.`, 429, "RATE_LIMITED");
         this.name = "RateLimitError";
     }
 }
@@ -26,8 +39,14 @@ class RateLimitError extends AppError {
 function handleError(error: unknown) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     const status = error instanceof AppError ? error.statusCode : 500;
-    console.error(`[API Error]`, message);
-    return NextResponse.json({ error: message }, { status });
+    const code = error instanceof AppError ? error.code : "INTERNAL_ERROR";
+
+    console.error(`[API Error] ${code}:`, message);
+
+    return NextResponse.json(
+        { error: message, code },
+        { status }
+    );
 }
 
 // ============================================================================
@@ -35,112 +54,36 @@ function handleError(error: unknown) {
 // ============================================================================
 
 const CONFIG = {
-    MODEL_NAME: "gemini-3-flash-preview",
-    MAX_OUTPUT_TOKENS: 8192,
+    MAX_OUTPUT_TOKENS: MODEL_CONFIG.MAX_OUTPUT_TOKENS,
     MAX_HISTORY_MESSAGES: 30,
-    REQUEST_TIMEOUT: 90_000,
-
-    TEMPERATURE: 0.7,
-    TOP_P: 0.95,
-    TOP_K: 40,
-
-    SYSTEM_INSTRUCTION: `You are GemBot, a highly capable AI assistant powered by Gemini. You are designed to help people with a wide range of questions and tasks.
-
-## Your Capabilities
-You excel at helping with:
-
-
-### 🔬 **Science & Mathematics**
-- Solving complex math problems (algebra, calculus, statistics, geometry)
-- Explaining scientific concepts (physics, chemistry, biology, astronomy)
-- Step-by-step problem solving with clear explanations
-- Helping with homework and exam preparation
-
-### 💻 **Technology & Repair**
-- Phone repair guides (iPhone, Android, screen replacement, battery issues)
-- Computer troubleshooting and maintenance
-- Software installation and configuration
-- Tech buying advice and comparisons
-
-### 💼 **Professional & Career**
-- Resume writing and job application tips
-- Business strategy and entrepreneurship
-- Project management and productivity
-- Communication and presentation skills
-
-### 📚 **Education & Learning**
-- Research assistance and study techniques
-- Language learning and grammar help
-- History, geography, and social sciences
-- Creative writing and essay assistance
-
-### 🏠 **Daily Life & Practical Skills**
-- Cooking recipes and nutrition advice
-- Home improvement and DIY projects
-- Personal finance and budgeting
-- Health and wellness guidance (general, not medical diagnosis)
-
-### 💻 **Programming & Development** (When Asked)
-- Code in any language (Python, JavaScript, TypeScript, etc.)
-- Debug and optimize existing code
-- Explain programming concepts
-- Architecture and best practices
-
-## How You Respond
-1. **Understand First**: Identify what the user truly needs
-2. **Be Direct**: Give clear, actionable answers without unnecessary preamble
-3. **Show Your Work**: For math/science, show step-by-step solutions
-4. **Be Practical**: Prioritize real-world, applicable advice
-5. **Adapt Your Tone**: Casual for general chat, precise for technical queries
-
-## Response Quality
-- Use markdown formatting for clarity (headers, lists, code blocks)
-- Include examples and analogies for complex topics
-- Provide sources or suggest further reading when relevant
-- Ask clarifying questions if the request is ambiguous
-
-## What You DON'T Do
-- Provide medical, legal, or financial advice that requires a professional
-- Generate harmful, misleading, or inappropriate content
-- Pretend to have real-time internet access (unless specifically enabled)
-- Overcomplicate simple questions`,
+    REQUEST_TIMEOUT: MODEL_CONFIG.REQUEST_TIMEOUT,
+    MAX_TOOL_ITERATIONS: 5, // Prevent infinite tool loops
+    MAX_ATTACHMENT_SIZE: 10 * 1024 * 1024, // 10MB
+    SUPPORTED_MIME_TYPES: [
+        "image/png",
+        "image/jpeg",
+        "image/webp",
+        "image/gif",
+        "application/pdf",
+        "audio/mpeg",
+        "audio/wav",
+        "audio/ogg",
+        "video/mp4",
+        "video/webm",
+    ],
 } as const;
 
 // ============================================================================
 // Service Setup
 // ============================================================================
 
-let genAI: GoogleGenerativeAI | null = null;
-let model: GenerativeModel | null = null;
 const sessionCache = getSessionCache();
 
-function getAIModel(): GenerativeModel {
-    if (model) return model;
-
-    const apiKey = process.env.GOOGLE_API_KEY;
-    if (!apiKey) {
-        throw new AppError("Missing GOOGLE_API_KEY", 500);
-    }
-
-    genAI = new GoogleGenerativeAI(apiKey);
-    model = genAI.getGenerativeModel({
-        model: CONFIG.MODEL_NAME,
-        systemInstruction: CONFIG.SYSTEM_INSTRUCTION,
-        generationConfig: {
-            temperature: CONFIG.TEMPERATURE,
-            topP: CONFIG.TOP_P,
-            topK: CONFIG.TOP_K,
-        },
-    });
-
-    return model;
-}
-
 // ============================================================================
-// History Management (Token-Aware)
+// History Management
 // ============================================================================
 
-type HistoryMessage = { role: string; parts: Array<{ text: string }> };
+type HistoryMessage = Content;
 
 function trimHistory(history: HistoryMessage[]): HistoryMessage[] {
     if (!Array.isArray(history)) return [];
@@ -155,41 +98,190 @@ function trimHistory(history: HistoryMessage[]): HistoryMessage[] {
 }
 
 // ============================================================================
-// Streaming Handler
+// Multimodal Processing
+// ============================================================================
+
+function processAttachments(attachments: Attachment[]): Part[] {
+    const parts: Part[] = [];
+
+    for (const attachment of attachments) {
+        // Validate MIME type
+        if (!CONFIG.SUPPORTED_MIME_TYPES.includes(attachment.mimeType as typeof CONFIG.SUPPORTED_MIME_TYPES[number])) {
+            console.warn(`[Attachment] Unsupported MIME type: ${attachment.mimeType}`);
+            continue;
+        }
+
+        // Validate size (estimate from base64)
+        const estimatedSize = (attachment.data.length * 3) / 4;
+        if (estimatedSize > CONFIG.MAX_ATTACHMENT_SIZE) {
+            console.warn(`[Attachment] File too large: ${estimatedSize} bytes`);
+            continue;
+        }
+
+        parts.push({
+            inlineData: {
+                mimeType: attachment.mimeType,
+                data: attachment.data,
+            },
+        });
+    }
+
+    return parts;
+}
+
+// ============================================================================
+// Function Calling Handler
+// ============================================================================
+
+async function handleToolCalls(
+    chat: ChatSession,
+    initialResponse: string,
+    toolCalls: Array<{ name: string; args: Record<string, unknown> }>,
+): Promise<{ text: string; toolsUsed: string[] }> {
+    const toolsUsed: string[] = [];
+    let iterations = 0;
+
+    // Execute all tool calls
+    while (toolCalls.length > 0 && iterations < CONFIG.MAX_TOOL_ITERATIONS) {
+        iterations++;
+
+        const toolResults = await Promise.all(
+            toolCalls.map(async (call) => {
+                toolsUsed.push(call.name);
+                const result = await executeTool(call.name, call.args);
+                return {
+                    functionResponse: {
+                        name: call.name,
+                        response: result.success
+                            ? { result: result.result }
+                            : { error: result.error },
+                    },
+                };
+            })
+        );
+
+        // Send tool results back to model
+        const response = await chat.sendMessage(toolResults as Part[]);
+        const responseText = response.response.text();
+
+        // Check if model wants to call more tools
+        const candidates = response.response.candidates;
+        const newCalls: typeof toolCalls = [];
+
+        if (candidates?.[0]?.content?.parts) {
+            for (const part of candidates[0].content.parts) {
+                if ("functionCall" in part && part.functionCall) {
+                    newCalls.push({
+                        name: part.functionCall.name,
+                        args: part.functionCall.args as Record<string, unknown>,
+                    });
+                }
+            }
+        }
+
+        if (newCalls.length === 0) {
+            // No more tool calls, return final response
+            return { text: responseText, toolsUsed };
+        }
+
+        toolCalls = newCalls;
+    }
+
+    return { text: initialResponse, toolsUsed };
+}
+
+// ============================================================================
+// Streaming Handler (with Tool Support)
 // ============================================================================
 
 async function streamResponse(
     userId: string,
     message: string,
-    history: HistoryMessage[] = []
+    history: HistoryMessage[] = [],
+    attachments: Attachment[] = [],
+    responseFormat?: "text" | "json"
 ): Promise<Response> {
-    const aiModel = getAIModel();
+    const model = getModel();
     const encoder = new TextEncoder();
+
+    // Get intent-based generation config
+    const { config: generationConfig, intent } = createGenerationConfig(message);
+
+    // Configure for JSON if requested
+    const finalConfig = responseFormat === "json"
+        ? { ...generationConfig, responseMimeType: "application/json" }
+        : generationConfig;
 
     let chat = sessionCache.get(userId);
 
     if (!chat) {
-        chat = aiModel.startChat({
+        chat = model.startChat({
             history: trimHistory(history),
             generationConfig: {
                 maxOutputTokens: CONFIG.MAX_OUTPUT_TOKENS,
-                temperature: CONFIG.TEMPERATURE,
-                topP: CONFIG.TOP_P,
-                topK: CONFIG.TOP_K,
+                ...finalConfig,
             },
         });
         sessionCache.set(userId, chat, history);
     }
 
+    // Build message parts
+    const parts: Part[] = [];
+
+    // Add attachments first (if any)
+    if (attachments.length > 0) {
+        parts.push(...processAttachments(attachments));
+    }
+
+    // Add text message
+    parts.push({ text: message });
+
     const stream = new ReadableStream({
         async start(controller) {
             const startTime = Date.now();
             let fullText = "";
+            const toolsUsed: string[] = [];
 
             try {
-                const result = await chat!.sendMessageStream(message);
+                // Use timeout with AbortController
+                const timeoutId = setTimeout(() => {
+                    controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ error: "Request timeout" })}\n\n`)
+                    );
+                    controller.close();
+                }, CONFIG.REQUEST_TIMEOUT);
+
+                const result = await chat!.sendMessageStream(parts);
+
+                // Collect function calls during streaming
+                const pendingToolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
 
                 for await (const chunk of result.stream) {
+                    // Check for function calls
+                    const candidates = chunk.candidates;
+                    if (candidates?.[0]?.content?.parts) {
+                        for (const part of candidates[0].content.parts) {
+                            if ("functionCall" in part && part.functionCall) {
+                                pendingToolCalls.push({
+                                    name: part.functionCall.name,
+                                    args: part.functionCall.args as Record<string, unknown>,
+                                });
+
+                                // Notify client that we're executing a tool
+                                controller.enqueue(
+                                    encoder.encode(
+                                        `data: ${JSON.stringify({
+                                            toolCall: {
+                                                name: part.functionCall.name,
+                                                status: "executing",
+                                            },
+                                        })}\n\n`
+                                    )
+                                );
+                            }
+                        }
+                    }
+
                     const text = chunk.text();
                     if (text) {
                         fullText += text;
@@ -199,20 +291,47 @@ async function streamResponse(
                     }
                 }
 
+                // Handle tool calls if any
+                if (pendingToolCalls.length > 0) {
+                    const toolResult = await handleToolCalls(chat!, fullText, pendingToolCalls);
+                    toolsUsed.push(...toolResult.toolsUsed);
+
+                    // Stream the tool result response
+                    if (toolResult.text !== fullText) {
+                        const additionalText = toolResult.text;
+                        fullText = additionalText;
+                        controller.enqueue(
+                            encoder.encode(`data: ${JSON.stringify({ text: additionalText, isToolResult: true })}\n\n`)
+                        );
+                    }
+                }
+
+                clearTimeout(timeoutId);
+
                 // Send metadata at end
-                const meta = {
+                const meta: ResponseMeta = {
                     processingTimeMs: Date.now() - startTime,
                     estimatedTokens: estimateTokens(fullText),
+                    detectedIntent: intent,
+                    temperatureUsed: finalConfig.temperature,
+                    toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
                 };
+
                 controller.enqueue(
                     encoder.encode(`data: ${JSON.stringify({ done: true, meta })}\n\n`)
                 );
                 controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-
             } catch (error) {
                 const msg = error instanceof Error ? error.message : "Stream error";
+
+                // Detect specific error types
+                let code = "INTERNAL_ERROR";
+                if (msg.includes("SAFETY")) code = "SAFETY_BLOCKED";
+                else if (msg.includes("QUOTA") || msg.includes("429")) code = "QUOTA_EXCEEDED";
+                else if (msg.includes("INVALID")) code = "INVALID_REQUEST";
+
                 controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`)
+                    encoder.encode(`data: ${JSON.stringify({ error: msg, code })}\n\n`)
                 );
             } finally {
                 controller.close();
@@ -236,27 +355,75 @@ async function streamResponse(
 async function sendMessage(
     userId: string,
     message: string,
-    history: HistoryMessage[] = []
-): Promise<string> {
-    const aiModel = getAIModel();
+    history: HistoryMessage[] = [],
+    attachments: Attachment[] = [],
+    responseFormat?: "text" | "json"
+): Promise<{ response: string; meta: ResponseMeta }> {
+    const model = getModel();
+    const startTime = Date.now();
+
+    // Get intent-based generation config
+    const { config: generationConfig, intent } = createGenerationConfig(message);
+
+    const finalConfig = responseFormat === "json"
+        ? { ...generationConfig, responseMimeType: "application/json" }
+        : generationConfig;
 
     let chat = sessionCache.get(userId);
 
     if (!chat) {
-        chat = aiModel.startChat({
+        chat = model.startChat({
             history: trimHistory(history),
             generationConfig: {
                 maxOutputTokens: CONFIG.MAX_OUTPUT_TOKENS,
-                temperature: CONFIG.TEMPERATURE,
-                topP: CONFIG.TOP_P,
-                topK: CONFIG.TOP_K,
+                ...finalConfig,
             },
         });
         sessionCache.set(userId, chat, history);
     }
 
-    const result = await chat.sendMessage(message);
-    return result.response.text();
+    // Build message parts
+    const parts: Part[] = [];
+    if (attachments.length > 0) {
+        parts.push(...processAttachments(attachments));
+    }
+    parts.push({ text: message });
+
+    const result = await chat.sendMessage(parts);
+    let responseText = result.response.text();
+    const toolsUsed: string[] = [];
+
+    // Check for function calls
+    const candidates = result.response.candidates;
+    const toolCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
+
+    if (candidates?.[0]?.content?.parts) {
+        for (const part of candidates[0].content.parts) {
+            if ("functionCall" in part && part.functionCall) {
+                toolCalls.push({
+                    name: part.functionCall.name,
+                    args: part.functionCall.args as Record<string, unknown>,
+                });
+            }
+        }
+    }
+
+    // Handle tool calls
+    if (toolCalls.length > 0) {
+        const toolResult = await handleToolCalls(chat, responseText, toolCalls);
+        responseText = toolResult.text;
+        toolsUsed.push(...toolResult.toolsUsed);
+    }
+
+    const meta: ResponseMeta = {
+        processingTimeMs: Date.now() - startTime,
+        estimatedTokens: estimateTokens(responseText),
+        detectedIntent: intent,
+        temperatureUsed: finalConfig.temperature,
+        toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
+    };
+
+    return { response: responseText, meta };
 }
 
 // ============================================================================
@@ -280,6 +447,8 @@ export async function POST(request: Request) {
         const userId = typeof body.userId === "string" ? body.userId.trim() : "";
         const stream = body.stream !== false;
         const history = Array.isArray(body.history) ? body.history : [];
+        const attachments: Attachment[] = Array.isArray(body.attachments) ? body.attachments : [];
+        const responseFormat = body.responseFormat === "json" ? "json" : "text";
 
         if (!message) throw new AppError("Message is required", 400);
         if (!userId) throw new AppError("User ID is required", 400);
@@ -299,24 +468,22 @@ export async function POST(request: Request) {
         // Sanitize input
         const cleanMessage = sanitizeMessage(message);
 
-        // Handle request
-        const startTime = Date.now();
+        // Log request details
+        console.log(`[Chat] User: ${userId.slice(0, 8)}... | Attachments: ${attachments.length} | Format: ${responseFormat}`);
 
+        // Handle request
         if (stream) {
-            return streamResponse(userId, cleanMessage, history);
+            return streamResponse(userId, cleanMessage, history, attachments, responseFormat);
         }
 
-        const response = await sendMessage(userId, cleanMessage, history);
+        const { response, meta } = await sendMessage(userId, cleanMessage, history, attachments, responseFormat);
+
         return NextResponse.json({
             message: response,
             conversationId: userId,
             timestamp: new Date().toISOString(),
-            meta: {
-                processingTimeMs: Date.now() - startTime,
-                estimatedTokens: estimateTokens(response),
-            },
+            meta,
         });
-
     } catch (error) {
         return handleError(error);
     }

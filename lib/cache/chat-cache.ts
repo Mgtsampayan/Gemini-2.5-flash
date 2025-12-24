@@ -7,14 +7,14 @@
  * - Type-safe session handling
  */
 
-import type { ChatSession } from "@google/generative-ai";
+import type { ChatSession, Content } from "@google/generative-ai";
 
 interface CachedSession {
     session: ChatSession;
     lastAccessed: number;
     createdAt: number;
     messageCount: number;
-    history: Array<{ role: string, parts: Array<{ text: string }> }>;
+    history: Content[];
 }
 
 interface CacheConfig {
@@ -85,7 +85,7 @@ export class SessionCache {
     /**
      * Store a session for a user
      */
-    set(userId: string, session: ChatSession, initialHistory: Array<{ role: string, parts: Array<{ text: string }> }> = []): void {
+    set(userId: string, session: ChatSession, initialHistory: Content[] = []): void {
         // Evict oldest sessions if at capacity
         if (this.sessions.size >= this.config.maxSessions) {
             this.evictOldest();
@@ -115,7 +115,7 @@ export class SessionCache {
     /**
      * Update history for a session
      */
-    updateHistory(userId: string, history: Array<{ role: string, parts: Array<{ text: string }> }>): void {
+    updateHistory(userId: string, history: Content[]): void {
         const cached = this.sessions.get(userId);
         if (cached) {
             cached.history = history;
