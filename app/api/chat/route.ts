@@ -1,12 +1,3 @@
-/**
- * Chat API Route Handler (Simplified)
- *
- * A clean, minimal implementation for easy debugging.
- * - Streaming via SSE
- * - Basic rate limiting
- * - Simple input sanitization
- */
-
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI, type GenerativeModel } from "@google/generative-ai";
 import { getSessionCache } from "@/lib/cache/chat-cache";
@@ -49,10 +40,9 @@ const CONFIG = {
     MAX_HISTORY_MESSAGES: 30,
     REQUEST_TIMEOUT: 90_000,
 
-    // Generation parameters for higher quality responses
-    TEMPERATURE: 0.7,          // Balance creativity and accuracy (0.0-2.0)
-    TOP_P: 0.95,               // Nucleus sampling for diverse yet relevant responses
-    TOP_K: 40,                 // Consider top 40 tokens
+    TEMPERATURE: 0.7,
+    TOP_P: 0.95,
+    TOP_K: 40,
 
     SYSTEM_INSTRUCTION: `You are GemBot, a highly capable AI assistant powered by Gemini. You are designed to help people with a wide range of questions and tasks.
 
