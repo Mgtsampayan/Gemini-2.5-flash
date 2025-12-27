@@ -6,8 +6,8 @@
 
 import { GoogleGenerativeAI, type GenerativeModel, type GenerationConfig } from "@google/generative-ai";
 import { getToolDeclarations } from "./tools";
-import { SYSTEM_INSTRUCTION, detectIntent, getConfigForIntent } from "./prompts";
-import type { IntentType } from "./types";
+import { SYSTEM_INSTRUCTION, detectIntent, getConfigForIntent, detectResponseDepth, getConfigForDepth } from "./prompts";
+import type { IntentType, ResponseDepthType } from "./types";
 
 // ============================================================================
 // Configuration
@@ -70,25 +70,34 @@ export function getModel(): GenerativeModel {
 }
 
 /**
- * Create a generation config based on message intent
+ * Create a generation config based on message intent AND response depth.
+ * This provides intelligent calibration of both temperature (intent) and 
+ * maxOutputTokens (depth) for optimal response quality.
  */
 export function createGenerationConfig(
     message: string,
     overrides?: Partial<GenerationConfig>
-): { config: GenerationConfig; intent: IntentType } {
+): { config: GenerationConfig; intent: IntentType; depth: ResponseDepthType } {
+    // Detect intent (influences temperature, creativity)
     const intent = detectIntent(message);
     const intentConfig = getConfigForIntent(intent);
 
+    // Detect depth (influences response length)
+    const depth = detectResponseDepth(message);
+    const depthConfig = getConfigForDepth(depth);
+
     console.log(`[Intent] Detected: ${intent} (${intentConfig.description})`);
+    console.log(`[Depth] Detected: ${depth} (${depthConfig.description}) → maxTokens: ${depthConfig.maxOutputTokens}`);
 
     const config: GenerationConfig = {
         temperature: overrides?.temperature ?? intentConfig.temperature,
         topP: overrides?.topP ?? intentConfig.topP,
         topK: overrides?.topK ?? intentConfig.topK,
-        maxOutputTokens: overrides?.maxOutputTokens ?? MODEL_CONFIG.MAX_OUTPUT_TOKENS,
+        // Use depth-based maxOutputTokens unless overridden
+        maxOutputTokens: overrides?.maxOutputTokens ?? depthConfig.maxOutputTokens,
     };
 
-    return { config, intent };
+    return { config, intent, depth };
 }
 
 /**
