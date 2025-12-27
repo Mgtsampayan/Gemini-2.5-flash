@@ -261,7 +261,7 @@ export default function Home() {
               <div>
                 <h1 className="text-lg font-semibold text-gradient">AI Chatbot 2025</h1>
                 <p className="text-xs text-muted-foreground">
-                  Powered by Gemini 2.5 Flash • Developed by Gemuel Sampayan
+                  Powered by Gemini 3.0 Flash Preview • Developed by Gemuel Sampayan
                 </p>
               </div>
             </div>
