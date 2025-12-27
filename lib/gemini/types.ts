@@ -46,8 +46,12 @@ export interface ResponseMeta {
     estimatedTokens: number;
     /** Intent detected from user message */
     detectedIntent?: IntentType | undefined;
+    /** Response depth detected from user message */
+    detectedDepth?: ResponseDepthType | undefined;
     /** Temperature used for this response */
     temperatureUsed?: number | undefined;
+    /** Max output tokens used based on depth */
+    maxTokensUsed?: number | undefined;
     /** Tools that were called during generation */
     toolsUsed?: string[] | undefined;
     /** Whether response came from cache */
@@ -109,6 +113,46 @@ export const INTENT_CONFIGS: Record<IntentType, IntentConfig> = {
         topP: 0.98,
         topK: 50,
         description: "Creative writing and brainstorming"
+    }
+};
+
+// ============================================================================
+// Response Depth Detection
+// ============================================================================
+
+/**
+ * Response depth determines how detailed the AI's response should be.
+ * - brief: 1-3 sentences for simple questions, greetings, yes/no, direct facts
+ * - standard: 1-2 paragraphs for typical questions
+ * - comprehensive: Multi-section responses for complex explanations, tutorials, comparisons
+ */
+export type ResponseDepthType =
+    | "brief"           // Quick answers: greetings, simple facts, yes/no
+    | "standard"        // Medium detail: typical questions  
+    | "comprehensive";  // In-depth: tutorials, comparisons, detailed explanations
+
+export interface ResponseDepthConfig {
+    maxOutputTokens: number;
+    description: string;
+    /** Hint for the AI on response structure */
+    structureHint: string;
+}
+
+export const RESPONSE_DEPTH_CONFIGS: Record<ResponseDepthType, ResponseDepthConfig> = {
+    brief: {
+        maxOutputTokens: 256,
+        description: "Quick, concise response",
+        structureHint: "1-3 sentences, direct answer"
+    },
+    standard: {
+        maxOutputTokens: 1024,
+        description: "Standard detailed response",
+        structureHint: "1-2 paragraphs with explanation"
+    },
+    comprehensive: {
+        maxOutputTokens: 4096,
+        description: "In-depth comprehensive response",
+        structureHint: "Multiple sections, examples, thorough coverage"
     }
 };
 

@@ -27,6 +27,8 @@ export {
     SYSTEM_INSTRUCTION,
     detectIntent,
     getConfigForIntent,
+    detectResponseDepth,
+    getConfigForDepth,
     OUTPUT_SCHEMAS
 } from "./prompts";
 
@@ -38,6 +40,8 @@ export type {
     ResponseMeta,
     IntentType,
     IntentConfig,
+    ResponseDepthType,
+    ResponseDepthConfig,
     ToolHandler,
     ToolRegistry,
     ToolExecutionResult,

@@ -148,15 +148,21 @@ const encodeDecodeTool: FunctionDeclaration = {
 
 const handleCalculate: ToolHandler = async (args) => {
     try {
-        const expression = String(args.expression || "");
+        const expression = String(args.expression || "").trim();
+
+        if (!expression) {
+            throw new Error("Empty expression provided");
+        }
 
         // Sanitize and normalize expression
         let sanitized = expression
             .toLowerCase()
-            .replace(/\s+/g, "")
-            // Handle natural language patterns
+            // Handle natural language patterns BEFORE removing whitespace
             .replace(/(\d+(?:\.\d+)?)\s*%\s*of\s*(\d+(?:\.\d+)?)/gi, "($1/100)*$2")
             .replace(/(\d+(?:\.\d+)?)\s*percent\s*of\s*(\d+(?:\.\d+)?)/gi, "($1/100)*$2")
+            // Now remove whitespace for cleaner processing
+            .replace(/\s+/g, "")
+            // Math function replacements
             .replace(/sqrt\(([^)]+)\)/g, "Math.sqrt($1)")
             .replace(/cbrt\(([^)]+)\)/g, "Math.cbrt($1)")
             .replace(/abs\(([^)]+)\)/g, "Math.abs($1)")
@@ -167,15 +173,19 @@ const handleCalculate: ToolHandler = async (args) => {
             .replace(/ln\(([^)]+)\)/g, "Math.log($1)")
             .replace(/exp\(([^)]+)\)/g, "Math.exp($1)")
             .replace(/(\d+(?:\.\d+)?)\^(\d+(?:\.\d+)?)/g, "Math.pow($1,$2)")
-            .replace(/pi/g, "Math.PI")
-            .replace(/e(?![xp])/g, "Math.E")
+            .replace(/\bpi\b/g, "Math.PI")
+            .replace(/\be\b(?![xp])/g, "Math.E")
             .replace(/floor\(([^)]+)\)/g, "Math.floor($1)")
             .replace(/ceil\(([^)]+)\)/g, "Math.ceil($1)")
             .replace(/round\(([^)]+)\)/g, "Math.round($1)");
 
-        // Security: only allow safe characters
-        if (!/^[0-9+\-*/().%,\s\w]+$/.test(sanitized.replace(/Math\.\w+/g, ""))) {
-            throw new Error("Invalid characters in expression");
+        // Prepare for security check - remove Math.xxx patterns first
+        const forSecurityCheck = sanitized.replace(/Math\.[a-zA-Z]+/g, "0");
+
+        // Security: only allow safe characters (numbers, operators, parentheses)
+        // This regex allows: digits, +, -, *, /, (), ., %, and commas
+        if (!/^[0-9+\-*/().%,]+$/.test(forSecurityCheck)) {
+            throw new Error(`Invalid characters in expression: ${expression}`);
         }
 
         // Evaluate using Function constructor (safer than eval)
