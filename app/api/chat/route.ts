@@ -205,7 +205,7 @@ async function streamResponse(
     const encoder = new TextEncoder();
 
     // Get intent-based generation config
-    const { config: generationConfig, intent } = createGenerationConfig(message);
+    const { config: generationConfig, intent, depth } = createGenerationConfig(message);
 
     // Configure for JSON if requested
     const finalConfig = responseFormat === "json"
@@ -313,7 +313,9 @@ async function streamResponse(
                     processingTimeMs: Date.now() - startTime,
                     estimatedTokens: estimateTokens(fullText),
                     detectedIntent: intent,
+                    detectedDepth: depth,
                     temperatureUsed: finalConfig.temperature,
+                    maxTokensUsed: finalConfig.maxOutputTokens,
                     toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
                 };
 
@@ -363,7 +365,7 @@ async function sendMessage(
     const startTime = Date.now();
 
     // Get intent-based generation config
-    const { config: generationConfig, intent } = createGenerationConfig(message);
+    const { config: generationConfig, intent, depth } = createGenerationConfig(message);
 
     const finalConfig = responseFormat === "json"
         ? { ...generationConfig, responseMimeType: "application/json" }
@@ -419,7 +421,9 @@ async function sendMessage(
         processingTimeMs: Date.now() - startTime,
         estimatedTokens: estimateTokens(responseText),
         detectedIntent: intent,
+        detectedDepth: depth,
         temperatureUsed: finalConfig.temperature,
+        maxTokensUsed: finalConfig.maxOutputTokens,
         toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
     };
 
