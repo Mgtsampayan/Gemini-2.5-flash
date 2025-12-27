@@ -354,19 +354,23 @@ export function detectResponseDepth(message: string): ResponseDepthType {
  * Get the response depth configuration
  */
 export function getConfigForDepth(depth: ResponseDepthType): ResponseDepthConfig {
+    // IMPORTANT: These are SAFETY LIMITS, not targets.
+    // The AI self-regulates based on the system instruction.
+    // We keep these generous to prevent truncation while still 
+    // providing hints to the model about expected length.
     const configs: Record<ResponseDepthType, ResponseDepthConfig> = {
         brief: {
-            maxOutputTokens: 256,
+            maxOutputTokens: 1024,  // Safe limit, AI will self-regulate to be concise
             description: "Quick, concise response",
             structureHint: "1-3 sentences, direct answer"
         },
         standard: {
-            maxOutputTokens: 1024,
+            maxOutputTokens: 2048,  // Comfortable room for explanations
             description: "Standard detailed response",
             structureHint: "1-2 paragraphs with explanation"
         },
         comprehensive: {
-            maxOutputTokens: 4096,
+            maxOutputTokens: 8192,  // Full capacity for complex responses
             description: "In-depth comprehensive response",
             structureHint: "Multiple sections, examples, thorough coverage"
         }

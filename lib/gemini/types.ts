@@ -140,17 +140,17 @@ export interface ResponseDepthConfig {
 
 export const RESPONSE_DEPTH_CONFIGS: Record<ResponseDepthType, ResponseDepthConfig> = {
     brief: {
-        maxOutputTokens: 256,
+        maxOutputTokens: 1024,  // Safe limit - AI self-regulates via system instruction
         description: "Quick, concise response",
         structureHint: "1-3 sentences, direct answer"
     },
     standard: {
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048,  // Comfortable room for explanations
         description: "Standard detailed response",
         structureHint: "1-2 paragraphs with explanation"
     },
     comprehensive: {
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,  // Full capacity for complex topics
         description: "In-depth comprehensive response",
         structureHint: "Multiple sections, examples, thorough coverage"
     }
