@@ -464,7 +464,7 @@ function WelcomeScreen({ onSuggestionClick }: { onSuggestionClick?: (suggestion:
         transition={{ delay: 0.4 }}
         className="text-muted-foreground max-w-md mb-6"
       >
-        Powered by Google Gemini 2.5 Flash. Ask me anything about coding, science,
+        Powered by Google Gemini 3.0 Flash Preview. Ask me anything about coding, science,
         creative writing, or just chat!
       </motion.p>
 
