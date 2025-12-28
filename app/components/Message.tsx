@@ -111,7 +111,7 @@ export default function Message({
                     )}
 
                     {isUser ? (
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-words">
                             {message.text}
                         </p>
                     ) : (

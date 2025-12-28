@@ -447,11 +447,11 @@ function WelcomeScreen({ onSuggestionClick }: { onSuggestionClick?: (suggestion:
         transition={{ duration: 0.5, delay: 0.2 }}
         className="relative mb-6"
       >
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
+        <div className="w-20 h-20 rounded-2xl bg-linear-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
           <SparkleIcon className="w-10 h-10 text-white" />
         </div>
         <motion.div
-          className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary to-accent blur-xl opacity-50"
+          className="absolute inset-0 rounded-2xl bg-linear-to-br from-primary to-accent blur-xl opacity-50"
           animate={{ scale: [1, 1.1, 1] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         />

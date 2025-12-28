@@ -56,7 +56,7 @@ export function Sidebar({
                             exit={{ opacity: 0 }}
                             className="flex items-center gap-2"
                         >
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-linear-to-br from-primary to-accent flex items-center justify-center">
                                 <SparkleIcon className="w-4 h-4 text-white" />
                             </div>
                             <span className="font-semibold text-sidebar-foreground">
