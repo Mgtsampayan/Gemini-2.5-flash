@@ -4,7 +4,8 @@
  * Advanced prompts and intent classification for optimal response quality.
  */
 
-import type { IntentType, IntentConfig, ResponseDepthType, ResponseDepthConfig, INTENT_CONFIGS, RESPONSE_DEPTH_CONFIGS } from "./types";
+import { INTENT_CONFIGS, RESPONSE_DEPTH_CONFIGS } from "./types";
+import type { IntentType, IntentConfig, ResponseDepthType, ResponseDepthConfig } from "./types";
 
 // ============================================================================
 // System Instructions
@@ -224,46 +225,8 @@ export function detectIntent(message: string): IntentType {
  * Get generation config based on detected intent
  */
 export function getConfigForIntent(intent: IntentType): IntentConfig {
-    const configs: Record<IntentType, IntentConfig> = {
-        math: {
-            temperature: 0.1,
-            topP: 0.8,
-            topK: 20,
-            description: "Precise mathematical calculations"
-        },
-        code: {
-            temperature: 0.2,
-            topP: 0.85,
-            topK: 30,
-            description: "Code generation and debugging"
-        },
-        factual: {
-            temperature: 0.3,
-            topP: 0.9,
-            topK: 35,
-            description: "Factual information retrieval"
-        },
-        analysis: {
-            temperature: 0.4,
-            topP: 0.9,
-            topK: 40,
-            description: "Data analysis and comparisons"
-        },
-        general: {
-            temperature: 0.7,
-            topP: 0.95,
-            topK: 40,
-            description: "General conversation"
-        },
-        creative: {
-            temperature: 0.9,
-            topP: 0.98,
-            topK: 50,
-            description: "Creative writing and brainstorming"
-        }
-    };
-
-    return configs[intent];
+    // Use the single source of truth from types.ts
+    return INTENT_CONFIGS[intent];
 }
 
 // ============================================================================
@@ -354,29 +317,8 @@ export function detectResponseDepth(message: string): ResponseDepthType {
  * Get the response depth configuration
  */
 export function getConfigForDepth(depth: ResponseDepthType): ResponseDepthConfig {
-    // IMPORTANT: These are SAFETY LIMITS, not targets.
-    // The AI self-regulates based on the system instruction.
-    // We keep these generous to prevent truncation while still 
-    // providing hints to the model about expected length.
-    const configs: Record<ResponseDepthType, ResponseDepthConfig> = {
-        brief: {
-            maxOutputTokens: 1024,  // Safe limit, AI will self-regulate to be concise
-            description: "Quick, concise response",
-            structureHint: "1-3 sentences, direct answer"
-        },
-        standard: {
-            maxOutputTokens: 2048,  // Comfortable room for explanations
-            description: "Standard detailed response",
-            structureHint: "1-2 paragraphs with explanation"
-        },
-        comprehensive: {
-            maxOutputTokens: 8192,  // Full capacity for complex responses
-            description: "In-depth comprehensive response",
-            structureHint: "Multiple sections, examples, thorough coverage"
-        }
-    };
-
-    return configs[depth];
+    // Use the single source of truth from types.ts
+    return RESPONSE_DEPTH_CONFIGS[depth];
 }
 
 // ============================================================================
