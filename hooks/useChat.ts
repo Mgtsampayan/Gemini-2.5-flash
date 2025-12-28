@@ -69,17 +69,35 @@ export function useChat({ userId, onError, onToolCall }: UseChatOptions): UseCha
         }
     }, []);
 
-    // Save to localStorage on change
+    // Save to localStorage on change (debounced to prevent excessive writes)
     useEffect(() => {
-        try {
-            const toStore = messages.map((m) => ({
-                ...m,
-                timestamp: m.timestamp.toISOString(),
-            }));
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
-        } catch {
-            // Ignore storage errors
-        }
+        const saveTimeout = setTimeout(() => {
+            try {
+                const toStore = messages.map((m) => ({
+                    ...m,
+                    timestamp: m.timestamp.toISOString(),
+                }));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+            } catch (error) {
+                // Handle storage quota exceeded
+                if (error instanceof DOMException && error.name === "QuotaExceededError") {
+                    console.warn("[Storage] Quota exceeded, clearing old messages");
+                    // Keep only the last 20 messages if quota exceeded
+                    try {
+                        const recentMessages = messages.slice(-20).map((m) => ({
+                            ...m,
+                            timestamp: m.timestamp.toISOString(),
+                        }));
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(recentMessages));
+                    } catch {
+                        // If still failing, clear storage
+                        localStorage.removeItem(STORAGE_KEY);
+                    }
+                }
+            }
+        }, 300); // 300ms debounce
+
+        return () => clearTimeout(saveTimeout);
     }, [messages]);
 
     const stopStreaming = useCallback(() => {

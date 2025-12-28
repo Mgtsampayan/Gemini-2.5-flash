@@ -46,7 +46,7 @@ class RateLimiter {
 
         if (!entry) {
             // First request - create new bucket with max tokens minus 1
-            entry = { tokens: this.config.maxTokens - 1, lastRefill: now };
+            entry = { tokens: this.config.maxTokens - 1, lastRefill: now, lastRequest: now };
             this.buckets.set(key, entry);
             return { allowed: true, remaining: entry.tokens };
         }

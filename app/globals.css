@@ -241,7 +241,7 @@
 
   /* Sage gradient text */
   .text-gradient {
-    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent font-medium tracking-tight;
+    @apply `bg-gradient-to-r` from-primary to-accent bg-clip-text text-transparent font-medium tracking-tight;
   }
 
   /* Professional Button */
