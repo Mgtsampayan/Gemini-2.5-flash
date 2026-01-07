@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌌 Gemini AI Chat Companion
 
-## Getting Started
+A state-of-the-art, high-performance AI chatbot built with **Next.js 16**, **React 19**, and **Google Gemini 2.5 Flash**. This project combines minimalist aesthetics with powerful agentic capabilities, offering a seamless and intelligent chat experience.
 
-First, run the development server:
+![Premium UI](https://img.shields.io/badge/UI-Premium-blueviolet)
+![Next.js](https://img.shields.io/badge/Framework-Next.js%2016-black)
+![React](https://img.shields.io/badge/Library-React%2019-blue)
+![Gemini](https://img.shields.io/badge/AI-Gemini%202.5%20Flash-orange)
 
+---
+
+## ✨ Key Features
+
+### 🧠 Advanced AI Reasoning
+- **Gemini 2.5 Flash Integration**: Ultra-fast response times with deep contextual understanding.
+- **Agentic Tools**: Equipped with specialized tools for complex tasks, including a secure mathematical calculator.
+- **Contextual Memory**: Intelligent conversation threading and history management.
+
+### 🎨 Premium User Experience
+- **Fluid Animations**: High-fidelity transitions powered by `framer-motion`.
+- **Dynamic Sidebar**: Collapsible, intuitive navigation for managing multiple conversations.
+- **Glassmorphism Design**: Modern, translucent UI components with tailwindcss-optimized styling.
+- **A11y First**: Fully accessible interface with keyboard navigation support and semantic HTML.
+
+### 🛡️ Engineering Excellence
+- **Rate Limiting**: Integrated protection to ensure service stability.
+- **Secure Computation**: Math tool powered by `expr-eval` for safe expression parsing.
+- **Optimistic UI**: Real-time feedback for message delivery and conversation management.
+- **Token Management**: Efficient handling of AI tokens for cost-effective performance.
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript |
+| **Styling** | Tailwind CSS 4, Framer Motion |
+| **AI Engine** | Google Generative AI (@google/generative-ai) |
+| **Utilities** | Lucide React, Radix UI, Class Variance Authority |
+| **Testing** | Vitest, JSDOM, React Testing Library |
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- Node.js 20+
+- A Google Gemini API Key
+
+### 2. Installation
+Clone the repository and install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd ChatBotUsingGemini2025
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Environment Configuration
+Create a `.env` file in the root directory:
+```env
+GEMINI_API_KEY=your_api_key_here
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Run Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to start chatting!
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🏗️ Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```text
+├── app/                  # Next.js App Router & Server Components
+│   ├── components/       # Reusable UI Architecture
+│   └── globals.css       # Design System & Tokens
+├── lib/                  # Core Business Logic & AI Tools
+│   ├── gemini/           # Gemini API Integration
+│   └── workers/          # Background processing (Tokenization)
+├── hooks/                # Custom React Hooks for Chat Logic
+└── public/               # Static Assets & Icons
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🧪 Testing
 
-## Deploy on Vercel
+The project uses **Vitest** for unit and integration testing.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+# Run tests
+npm run test
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Run tests with UI
+npm run test:ui
+```
+
+---
+
+## 🛡️ Best Practices & Architecture
+This project adheres to the highest standards of modern web development:
+- **Component Colocation**: Keeps logic and styles close to where they are used.
+- **Hydration Safety**: Engineered to prevent common Next.js hydration pitfalls.
+- **Performance Optimized**: Leverages Next.js Turbopack for lightning-fast development iterations.
