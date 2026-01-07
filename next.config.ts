@@ -7,7 +7,8 @@ import type { NextConfig } from "next";
  * - React Compiler for automatic memoization
  * - Turbopack with persistent caching
  * - Enterprise security headers
- * - Dynamic IO for Cache Components
+ * - Bundle optimization
+ * - Image optimization
  */
 const nextConfig: NextConfig = {
   // Enable React 19.2 Compiler for automatic memoization
@@ -28,6 +29,27 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**",
       },
+    ],
+    // Optimize image formats
+    formats: ["image/avif", "image/webp"],
+    // Limit image sizes for faster loading
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+  },
+
+  // Production optimizations
+  poweredByHeader: false, // Remove X-Powered-By header
+  compress: true, // Enable gzip compression
+
+  // Bundle optimization - split vendor chunks
+  experimental: {
+    // Optimize package imports for tree shaking
+    optimizePackageImports: [
+      "lucide-react",
+      "framer-motion",
+      "@radix-ui/react-avatar",
+      "@radix-ui/react-slot",
+      "@radix-ui/react-toast",
     ],
   },
 
@@ -55,6 +77,8 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com;",
           },
+          // DNS prefetch for Gemini API
+          { key: "Link", value: "<https://generativelanguage.googleapis.com>; rel=dns-prefetch" },
         ],
       },
       // API routes specific headers
@@ -63,6 +87,13 @@ const nextConfig: NextConfig = {
         headers: [
           // Prevent caching of API responses by default
           { key: "Cache-Control", value: "no-store, max-age=0" },
+        ],
+      },
+      // Static assets - enable caching
+      {
+        source: "/(.*)\\.(ico|png|svg|jpg|jpeg|gif|webp|avif)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
         ],
       },
     ];
@@ -77,3 +108,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
