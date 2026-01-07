@@ -11,6 +11,9 @@ import { generateId } from "@/lib/utils";
 import type { Message } from "@/types/chat";
 import type { Attachment, ResponseMeta } from "@/lib/gemini";
 
+// Track in-flight request to prevent duplicates
+let currentRequestId: string | null = null;
+
 interface UseChatOptions {
     userId: string;
     onError?: (error: Error) => void;
@@ -114,6 +117,14 @@ export function useChat({ userId, onError, onToolCall }: UseChatOptions): UseCha
         async (text: string, attachments?: Attachment[]) => {
             const trimmed = text.trim();
             if (!trimmed || isLoading) return;
+
+            // Prevent duplicate requests
+            const requestId = generateId();
+            if (currentRequestId) {
+                console.log("[useChat] Request already in progress, skipping");
+                return;
+            }
+            currentRequestId = requestId;
 
             lastUserMsgRef.current = { text: trimmed, attachments };
             setError(null);
@@ -306,6 +317,7 @@ export function useChat({ userId, onError, onToolCall }: UseChatOptions): UseCha
             setIsStreaming(false);
             setCurrentTool(null);
             abortRef.current = null;
+            currentRequestId = null; // Clear request lock
         },
         [userId, isLoading, messages, onError, onToolCall]
     );
