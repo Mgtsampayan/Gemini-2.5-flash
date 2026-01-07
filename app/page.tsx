@@ -10,12 +10,12 @@
  * - Streaming responses with typewriter effect
  * - Message actions (copy, retry)
  * - Keyboard shortcuts
+ * - Reduced motion support for accessibility
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import Message from "./components/Message";
 import TypingIndicator from "./components/TypingIndicator";
-import { Sidebar } from "./components/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toaster } from "@/components/ui/toaster";
@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { motion, AnimatePresence } from "framer-motion";
 import { useChat } from "@/hooks/useChat";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { generateId } from "@/lib/utils";
 import {
   SparkleIcon,
@@ -32,6 +33,9 @@ import {
   StopIcon,
   LoadingIcon
 } from "@/lib/icons";
+
+// Lazy load Sidebar for code splitting
+const Sidebar = lazy(() => import("./components/Sidebar"));
 
 // ============================================================================
 // Types
@@ -69,6 +73,7 @@ export default function Home() {
   const messageSound = useRef<HTMLAudioElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const prefersReducedMotion = useReducedMotion();
 
   // Use the streaming chat hook
   const {
@@ -239,16 +244,18 @@ export default function Home() {
 
   return (
     <main className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
-      <Sidebar
-        conversations={conversations}
-        activeConversationId={activeConversationId}
-        onSelectConversation={handleSelectConversation}
-        onNewConversation={handleNewConversation}
-        onDeleteConversation={handleDeleteConversation}
-        isCollapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
+      {/* Sidebar (lazy loaded) */}
+      <Suspense fallback={<SidebarSkeleton isCollapsed={sidebarCollapsed} />}>
+        <Sidebar
+          conversations={conversations}
+          activeConversationId={activeConversationId}
+          onSelectConversation={handleSelectConversation}
+          onNewConversation={handleNewConversation}
+          onDeleteConversation={handleDeleteConversation}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+      </Suspense>
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -424,6 +431,25 @@ export default function Home() {
 // ============================================================================
 // Sub-components
 // ============================================================================
+
+/**
+ * Skeleton fallback for lazy-loaded Sidebar
+ */
+function SidebarSkeleton({ isCollapsed }: { isCollapsed: boolean }) {
+  return (
+    <aside
+      style={{ width: isCollapsed ? 64 : 280 }}
+      className="h-full flex flex-col border-r border-sidebar-border bg-sidebar-background/80 backdrop-blur-xl"
+    >
+      <div className="p-3 border-b border-sidebar-border">
+        <div className="h-8 w-8 rounded-lg bg-muted/50 animate-pulse" />
+      </div>
+      <div className="p-3">
+        <div className="h-10 rounded-lg bg-muted/50 animate-pulse" />
+      </div>
+    </aside>
+  );
+}
 
 function WelcomeScreen({ onSuggestionClick }: { onSuggestionClick?: (suggestion: string) => void }) {
   const suggestions = [
