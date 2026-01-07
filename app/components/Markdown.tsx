@@ -50,7 +50,26 @@ interface Token {
     value: string;
 }
 
+// Simple LRU cache for tokenizer results (avoids re-tokenizing during streaming)
+const tokenCache = new Map<string, Token[]>();
+const TOKEN_CACHE_MAX_SIZE = 100;
+
+function getCacheKey(code: string, language: string): string {
+    return `${language}:${code.length > 100 ? code.slice(0, 100) : code}`;
+}
+
 function tokenize(code: string, language: string): Token[] {
+    const cacheKey = getCacheKey(code, language);
+
+    // Check cache first
+    const cached = tokenCache.get(cacheKey);
+    if (cached) {
+        // Move to end (most recently used)
+        tokenCache.delete(cacheKey);
+        tokenCache.set(cacheKey, cached);
+        return cached;
+    }
+
     const tokens: Token[] = [];
     const keywords: Record<string, string[]> = {
         javascript: ["const", "let", "var", "function", "return", "if", "else", "for", "while", "class", "import", "export", "from", "async", "await", "try", "catch", "new", "this", "null", "undefined", "true", "false"],
@@ -104,6 +123,15 @@ function tokenize(code: string, language: string): Token[] {
             remaining = remaining.slice(1);
         }
     }
+
+    // Cache the result (evict oldest if at capacity)
+    if (tokenCache.size >= TOKEN_CACHE_MAX_SIZE) {
+        const firstKey = tokenCache.keys().next().value;
+        if (firstKey !== undefined) {
+            tokenCache.delete(firstKey);
+        }
+    }
+    tokenCache.set(cacheKey, tokens);
 
     return tokens;
 }

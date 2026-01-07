@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import type { Message as MessageType } from "@/types/chat";
 import Markdown from "./Markdown";
 import { useState, useCallback } from "react";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 interface MessageProps {
     message: MessageType;
@@ -30,6 +31,13 @@ const messageAnimationVariants = {
     },
 };
 
+// Reduced motion variants - immediate appearance
+const reducedMotionVariants = {
+    initial: { opacity: 1 },
+    animate: { opacity: 1 },
+    exit: { opacity: 0 },
+};
+
 export default function Message({
     message,
     onRetry,
@@ -39,6 +47,10 @@ export default function Message({
     const isFailed = message.status === "error";
     const isSending = message.status === "sending";
     const [copied, setCopied] = useState(false);
+    const prefersReducedMotion = useReducedMotion();
+
+    // Use reduced motion variants for accessibility
+    const variants = prefersReducedMotion ? reducedMotionVariants : messageAnimationVariants;
 
     const formattedTime = (() => {
         try {
@@ -63,11 +75,11 @@ export default function Message({
 
     return (
         <motion.div
-            variants={messageAnimationVariants}
+            variants={variants}
             initial="initial"
             animate="animate"
             exit="exit"
-            layout
+            layout={!prefersReducedMotion}
             className={cn(
                 "flex items-end gap-3 mb-4 group",
                 isUser ? "flex-row-reverse" : "flex-row"
