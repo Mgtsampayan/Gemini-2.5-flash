@@ -1,14 +1,16 @@
 /**
- * Simple In-Memory Rate Limiter
+ * High-Performance Rate Limiter
  * 
- * Token bucket algorithm for rate limiting API requests.
+ * Token bucket algorithm with LRU cache for bounded memory.
  * For production, consider Redis-based solution.
  */
+
+import { LRUCache } from "./cache/lru-cache";
 
 interface RateLimitEntry {
     tokens: number;
     lastRefill: number;
-    lastRequest?: number; // timestamp of last successful request
+    lastRequest?: number;
 }
 
 interface RateLimitConfig {
@@ -16,38 +18,47 @@ interface RateLimitConfig {
     maxTokens: number;
     /** Refill rate in tokens per second */
     refillRate: number;
-    /** Time window in milliseconds for cleanup */
-    cleanupInterval: number;
+    /** Maximum number of users to track */
+    maxUsers: number;
+    /** Entry TTL in milliseconds */
+    entryTtl: number;
 }
 
 const DEFAULT_CONFIG: RateLimitConfig = {
-    maxTokens: 10,           // 10 requests
-    refillRate: 0.167,       // ~10 per minute (10/60)
-    cleanupInterval: 60_000, // Clean up every minute
+    maxTokens: 10,
+    refillRate: 0.167,       // ~10 per minute
+    maxUsers: 10000,         // Bounded user tracking
+    entryTtl: 5 * 60 * 1000, // 5 minute TTL
 };
 
 class RateLimiter {
-    private readonly buckets = new Map<string, RateLimitEntry>();
+    private readonly cache: LRUCache<RateLimitEntry>;
     private readonly config: RateLimitConfig;
-    private cleanupTimer: NodeJS.Timeout | null = null;
 
     constructor(config: Partial<RateLimitConfig> = {}) {
         this.config = { ...DEFAULT_CONFIG, ...config };
-        this.startCleanup();
+        this.cache = new LRUCache<RateLimitEntry>({
+            maxSize: this.config.maxUsers,
+            ttl: this.config.entryTtl,
+            onEvict: (key) => {
+                if (process.env.NODE_ENV === "development") {
+                    console.log(`[RateLimiter] Evicted entry: ${key.slice(0, 8)}...`);
+                }
+            },
+        });
     }
 
     /**
      * Check if a request is allowed for the given key
-     * @returns Object with allowed status and remaining tokens
      */
     check(key: string): { allowed: boolean; remaining: number; retryAfter?: number } {
         const now = Date.now();
-        let entry = this.buckets.get(key);
+        let entry = this.cache.get(key) as RateLimitEntry | undefined;
 
         if (!entry) {
-            // First request - create new bucket with max tokens minus 1
+            // First request - create new bucket
             entry = { tokens: this.config.maxTokens - 1, lastRefill: now, lastRequest: now };
-            this.buckets.set(key, entry);
+            this.cache.set(key, entry);
             return { allowed: true, remaining: entry.tokens };
         }
 
@@ -57,17 +68,16 @@ class RateLimiter {
         entry.tokens = Math.min(this.config.maxTokens, entry.tokens + tokensToAdd);
         entry.lastRefill = now;
 
-        // BURST PROTECTION
-        // Prevent requests if they are too close together (< 500ms)
-        // This is a separate check from the token bucket
-        const MIN_REQUEST_INTERVAL = 500; // ms
+        // Burst protection (500ms minimum between requests)
+        const MIN_REQUEST_INTERVAL = 500;
         if (entry.lastRequest && (now - entry.lastRequest) < MIN_REQUEST_INTERVAL) {
             return { allowed: false, remaining: Math.floor(entry.tokens), retryAfter: 1 };
         }
 
         if (entry.tokens >= 1) {
             entry.tokens -= 1;
-            entry.lastRequest = now; // Update last request time
+            entry.lastRequest = now;
+            this.cache.set(key, entry); // Update in cache
             return { allowed: true, remaining: Math.floor(entry.tokens) };
         }
 
@@ -82,45 +92,30 @@ class RateLimiter {
      * Reset rate limit for a specific key
      */
     reset(key: string): void {
-        this.buckets.delete(key);
+        this.cache.delete(key);
     }
 
     /**
      * Get current stats
      */
     getStats() {
+        const cacheStats = this.cache.getStats();
         return {
-            activeUsers: this.buckets.size,
+            activeUsers: cacheStats.size,
+            maxUsers: cacheStats.maxSize,
             config: this.config,
         };
     }
 
     /**
-     * Clean up old entries
+     * Prune expired entries
      */
-    private cleanup(): void {
-        const now = Date.now();
-        const staleThreshold = 5 * 60 * 1000; // 5 minutes
-
-        for (const [key, entry] of this.buckets) {
-            if (now - entry.lastRefill > staleThreshold) {
-                this.buckets.delete(key);
-            }
-        }
-    }
-
-    private startCleanup(): void {
-        this.cleanupTimer = setInterval(() => this.cleanup(), this.config.cleanupInterval);
-        if (this.cleanupTimer.unref) {
-            this.cleanupTimer.unref();
-        }
+    prune(): number {
+        return this.cache.prune();
     }
 
     dispose(): void {
-        if (this.cleanupTimer) {
-            clearInterval(this.cleanupTimer);
-            this.cleanupTimer = null;
-        }
+        this.cache.clear();
     }
 }
 
@@ -138,3 +133,4 @@ export function resetRateLimiter(): void {
     globalRateLimiter?.dispose();
     globalRateLimiter = null;
 }
+

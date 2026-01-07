@@ -116,15 +116,47 @@ export class GeminiAgent {
         const encoder = new TextEncoder();
         const parts = [...this.processAttachments(attachments), { text: message }];
 
+        // Batching configuration for 60fps feeling
+        const BATCH_INTERVAL_MS = 16;
+        let pendingData: string[] = [];
+        let flushScheduled = false;
+
         const stream = new ReadableStream({
             async start(controller) {
                 const startTime = Date.now();
                 let fullText = "";
                 const toolsUsed: string[] = [];
+
+                // Flush batched data to client
+                const flush = () => {
+                    if (pendingData.length > 0) {
+                        const combined = pendingData.join("");
+                        controller.enqueue(encoder.encode(combined));
+                        pendingData = [];
+                    }
+                    flushScheduled = false;
+                };
+
+                // Schedule a batched flush
+                const scheduleFlush = () => {
+                    if (!flushScheduled) {
+                        flushScheduled = true;
+                        setTimeout(flush, BATCH_INTERVAL_MS);
+                    }
+                };
+
+                // Send data with optional immediate flush
+                const send = (data: string, immediate = false) => {
+                    pendingData.push(data);
+                    if (immediate) {
+                        flush();
+                    } else {
+                        scheduleFlush();
+                    }
+                };
+
                 const timeoutId = setTimeout(() => {
-                    controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ error: "Request timeout" })}\n\n`)
-                    );
+                    send(`data: ${JSON.stringify({ error: "Request timeout" })}\n\n`, true);
                     controller.close();
                 }, AGENT_CONFIG.REQUEST_TIMEOUT);
 
@@ -141,14 +173,10 @@ export class GeminiAgent {
                                         name: part.functionCall.name,
                                         args: part.functionCall.args as Record<string, unknown>,
                                     });
-                                    // Notify client
-                                    controller.enqueue(
-                                        encoder.encode(
-                                            `data: ${JSON.stringify({
-                                                toolCall: { name: part.functionCall.name, status: "executing" },
-                                            })}\n\n`
-                                        )
-                                    );
+                                    // Notify client immediately for tool calls
+                                    send(`data: ${JSON.stringify({
+                                        toolCall: { name: part.functionCall.name, status: "executing" },
+                                    })}\n\n`, true);
                                 }
                             }
                         }
@@ -156,7 +184,7 @@ export class GeminiAgent {
                         const text = chunk.text();
                         if (text) {
                             fullText += text;
-                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+                            send(`data: ${JSON.stringify({ text })}\n\n`);
                         }
                     }
 
@@ -166,9 +194,7 @@ export class GeminiAgent {
 
                         if (toolResult.text !== fullText) {
                             fullText = toolResult.text;
-                            controller.enqueue(
-                                encoder.encode(`data: ${JSON.stringify({ text: fullText, isToolResult: true })}\n\n`)
-                            );
+                            send(`data: ${JSON.stringify({ text: fullText, isToolResult: true })}\n\n`, true);
                         }
                     }
 
@@ -184,18 +210,16 @@ export class GeminiAgent {
                         toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
                     };
 
-                    controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ done: true, meta })}\n\n`)
-                    );
-                    controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                    // Final messages flush immediately
+                    send(`data: ${JSON.stringify({ done: true, meta })}\n\n`, true);
+                    send("data: [DONE]\n\n", true);
                 } catch (error) {
                     const msg = error instanceof Error ? error.message : "Stream error";
                     let code = "INTERNAL_ERROR";
                     if (msg.includes("SAFETY")) code = "SAFETY_BLOCKED";
                     else if (msg.includes("QUOTA") || msg.includes("429")) code = "QUOTA_EXCEEDED";
 
-                    controller.enqueue(
-                        encoder.encode(`data: ${JSON.stringify({ error: msg, code })}\n\n`)
+                    send(`data: ${JSON.stringify({ error: msg, code })}\n\n`, true
                     );
                 } finally {
                     controller.close();
