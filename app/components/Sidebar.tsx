@@ -111,10 +111,18 @@ export function Sidebar({
                             onMouseEnter={() => setHoveredId(conversation.id)}
                             onMouseLeave={() => setHoveredId(null)}
                         >
-                            <button
+                            <div
+                                role="button"
+                                tabIndex={0}
                                 onClick={() => onSelectConversation(conversation.id)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        onSelectConversation(conversation.id);
+                                    }
+                                }}
                                 className={cn(
-                                    "w-full p-2 rounded-lg text-left transition-all duration-200",
+                                    "w-full p-2 rounded-lg text-left transition-all duration-200 cursor-pointer",
                                     "hover:bg-sidebar-accent/10 group relative",
                                     activeConversationId === conversation.id &&
                                     "bg-sidebar-accent/15 text-sidebar-accent"
@@ -157,7 +165,7 @@ export function Sidebar({
                                         <TrashIcon className="w-3.5 h-3.5" />
                                     </motion.button>
                                 )}
-                            </button>
+                            </div>
                         </motion.div>
                     ))}
                 </AnimatePresence>
